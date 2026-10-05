@@ -44,4 +44,24 @@ export function validateConfig(input: unknown): Config {
   return config;
 }
 
-export default validateConfig(raw);
+const config = validateConfig(raw);
+
+/** Optional private deployment config. Never fall back when an override is invalid. */
+export function configFor(env: { [name: string]: unknown }): Config {
+  if (env.RELAY_CONFIG === undefined) return config;
+  if (typeof env.RELAY_CONFIG !== "string") throw new Error("RELAY_CONFIG must contain JSON");
+  let input: unknown;
+  try {
+    input = JSON.parse(env.RELAY_CONFIG);
+  } catch {
+    throw new Error("RELAY_CONFIG must contain valid JSON");
+  }
+  try {
+    return validateConfig(input);
+  } catch {
+    // Validation errors can contain private identifiers. Do not expose them.
+    throw new Error("RELAY_CONFIG failed configuration validation");
+  }
+}
+
+export default config;

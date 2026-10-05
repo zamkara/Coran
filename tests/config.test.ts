@@ -19,3 +19,20 @@ it.each([
   change(input);
   expect(() => validateConfig(input)).toThrow('relay.config.json:');
 });
+
+import bundled, { configFor } from '../src/config';
+it('uses bundled config only when RELAY_CONFIG is absent', () => {
+  expect(configFor({})).toBe(bundled);
+});
+it('uses a complete private config without changing the bundled one', () => {
+  const custom = { sources: { private: { type: 'gitlab', secret: 'SRC_PRIVATE', allow: ['example/private'] } }, destinations: { private: { secret: 'DEST_PRIVATE' } }, routes: [{ source: 'private', to: ['private'] }] };
+  expect(configFor({ RELAY_CONFIG: JSON.stringify(custom) })).toEqual(custom);
+  expect(bundled.sources.private).toBeUndefined();
+});
+it.each(['', '{', '{}', 42])('rejects invalid overrides without falling back', value => {
+  expect(() => configFor({ RELAY_CONFIG: value })).toThrow('RELAY_CONFIG');
+});
+it('does not expose private config values in errors', () => {
+  const custom = { sources: { 'private.invalid.identifier': {} }, destinations: {}, routes: [] };
+  expect(() => configFor({ RELAY_CONFIG: JSON.stringify(custom) })).toThrow('RELAY_CONFIG failed configuration validation');
+});

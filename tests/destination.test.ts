@@ -74,3 +74,32 @@ it('clears queue when the destination secret is missing', async () => {
   expect(await queue(s)).toHaveLength(0);
   expect(fetch).not.toHaveBeenCalled();
 });
+it('resolves destination secrets through the private config', async () => {
+  const s = stub();
+  const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 204 }));
+  await s.push('private', embed());
+  await runInDurableObject(s, async (_, state) => {
+    await state.storage.deleteAlarm();
+    const { Destination } = await import('../src/destination');
+    const custom = { sources: {}, destinations: { private: { secret: 'DEST_PRIVATE' } }, routes: [] };
+    const instance = new Destination(state, { ...bindings, RELAY_CONFIG: JSON.stringify(custom), DEST_PRIVATE: 'https://discord.test/private' });
+    await instance.alarm();
+  });
+  expect(fetch.mock.calls[0][0]).toBe('https://discord.test/private');
+  expect(await queue(s)).toHaveLength(0);
+});
+it('retains queued messages and retries when private config is invalid', async () => {
+  const s = stub();
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+  const fetch = vi.spyOn(globalThis, 'fetch');
+  await s.push('deploys', embed());
+  await runInDurableObject(s, async (_, state) => {
+    await state.storage.deleteAlarm();
+    const { Destination } = await import('../src/destination');
+    const instance = new Destination(state, { ...bindings, RELAY_CONFIG: '{' });
+    await instance.alarm();
+  });
+  expect(await queue(s)).toHaveLength(1);
+  expect(await alarm(s)).not.toBeNull();
+  expect(fetch).not.toHaveBeenCalled();
+});

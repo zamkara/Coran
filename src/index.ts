@@ -1,7 +1,7 @@
-import config from "./config";
+import { configFor } from "./config";
 import { authenticate } from "./auth";
 import { parseGeneric, parseGithub, parseGitlab, toEmbed } from "./normalize";
-import type { Env, Evt, SourceType } from "./types";
+import type { Config, Env, Evt, SourceType } from "./types";
 
 export { Guard } from "./guard";
 export { Destination } from "./destination";
@@ -22,7 +22,7 @@ function parse(type: SourceType, req: Request, payload: any): Evt | null {
   }
 }
 
-function targets(sourceId: string, e: Evt): string[] {
+function targets(config: Config, sourceId: string, e: Evt): string[] {
   const out = new Set<string>();
   for (const r of config.routes) {
     if (r.source !== sourceId) continue;
@@ -37,6 +37,14 @@ export default {
   async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const m = new URL(req.url).pathname.match(/^\/hook\/([a-z0-9_-]+)$/);
     if (req.method !== "POST" || !m) return reply("not found", 404);
+
+    let config: Config;
+    try {
+      config = configFor(env);
+    } catch {
+      console.error("relay configuration invalid");
+      return reply("configuration unavailable", 503);
+    }
 
     const id = m[1];
     const src = config.sources[id];
@@ -66,7 +74,7 @@ export default {
     if (!evt) return reply("ignored", 202);
     if (!src.allow.includes("*") && !src.allow.includes(evt.project)) return reply("forbidden", 403);
 
-    const aliases = targets(id, evt);
+    const aliases = targets(config, id, evt);
     if (aliases.length === 0) return reply("no route", 202);
 
     const embed = toEmbed(id, evt);

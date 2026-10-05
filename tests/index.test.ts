@@ -89,3 +89,26 @@ it('accepts bearer generic payloads and returns 202 when no route matches', asyn
     delete config.sources[source];
   }
 });
+it('applies private allowlist and routes and rejects projects from the bundled example', async () => {
+  const custom = { sources: { private: { type: 'gitlab', secret: 'SRC_MY_GITLAB', allow: ['example/private'] } }, destinations: { deploys: { secret: 'DEST_DEPLOYS' } }, routes: [{ source: 'private', to: ['deploys'] }] };
+  const customEnv = { ...bindings, RELAY_CONFIG: JSON.stringify(custom) };
+  const ctx = createExecutionContext();
+  const req = (project: string) => new Request('https://example.com/hook/private', {
+    method: 'POST', headers: { 'content-type': 'application/json', 'x-gitlab-token': 'test-secret' },
+    body: JSON.stringify({ project: { path_with_namespace: project }, object_kind: 'pipeline', object_attributes: { status: 'success', id: 1 } }),
+  });
+  expect((await worker.fetch(req('example/private'), customEnv, ctx)).status).toBe(202);
+  await waitOnExecutionContext(ctx);
+  expect((await worker.fetch(req('group/project'), customEnv, createExecutionContext())).status).toBe(403);
+  const { runInDurableObject } = await import('cloudflare:test');
+  await runInDurableObject(bindings.DESTINATION.get(bindings.DESTINATION.idFromName('deploys')), (_, state) => {
+    expect(state.storage.sql.exec('SELECT * FROM q').toArray()).toHaveLength(1);
+  });
+});
+it('fails closed on invalid private config and logs no raw input', async () => {
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+  const res = await worker.fetch(new Request('https://example.com/hook/my-gitlab', { method: 'POST' }), { ...bindings, RELAY_CONFIG: 'private-invalid-json' }, createExecutionContext());
+  expect(res.status).toBe(503);
+  expect(await res.text()).toBe('configuration unavailable');
+  expect(log).toHaveBeenCalledWith('relay configuration invalid');
+});

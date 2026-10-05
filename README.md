@@ -47,6 +47,19 @@ It contains no secrets, only the names of the Worker secrets to read.
 
 `pnpm run deploy` and `pnpm run dry-run` validate config before Wrangler bundles it. Invalid config also fails Worker startup.
 
+### Private deployment configuration
+
+Keep the public `relay.config.json` generic. To override it for a deployment, add a Worker secret named `RELAY_CONFIG` containing a complete configuration JSON with the same schema. It replaces the bundled config in both the request handler and destination delivery. Source credentials and Discord webhook URLs still belong in separate secrets referenced by name.
+
+Copy your private configuration into `relay.config.local.json` (ignored by Git), validate it locally, and upload it:
+
+```bash
+pnpm run validate:config -- relay.config.local.json
+pnpm exec wrangler secret put RELAY_CONFIG < relay.config.local.json
+```
+
+Alternatively, paste the JSON into a `RELAY_CONFIG` secret in the Worker dashboard and deploy the secret change. Invalid runtime config returns `503` for hook requests and retains queued deliveries for retry. It never falls back to the public example. Removing the secret restores the bundled config. Validate runtime changes before uploading because CI only verifies the public config.
+
 ## Source types
 
 | type | how it authenticates | notes |

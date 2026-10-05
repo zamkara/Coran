@@ -1,6 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
-import config from "./config";
-import type { Embed, Env } from "./types";
+import { configFor } from "./config";
+import type { Config, Embed, Env } from "./types";
 
 const MAX_QUEUE = 200;
 const BATCH_MS = 2000;
@@ -35,6 +35,15 @@ export class Destination extends DurableObject<Env> {
   async alarm(): Promise<void> {
     const rows = this.sql.exec("SELECT id, body FROM q ORDER BY id LIMIT ?", MAX_EMBEDS).toArray();
     if (rows.length === 0) return;
+
+    let config: Config;
+    try {
+      config = configFor(this.env);
+    } catch {
+      console.error("relay configuration invalid, retaining destination queue");
+      await this.ctx.storage.setAlarm(Date.now() + 5000);
+      return;
+    }
 
     const alias = this.sql.exec("SELECT v FROM meta WHERE k = 'alias'").toArray()[0]?.v as string | undefined;
     const hook = alias ? (this.env[config.destinations[alias]?.secret ?? ""] as string | undefined) : undefined;
