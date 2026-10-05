@@ -17,23 +17,23 @@ sources (many) -> Worker: authenticate, allowlist, normalize -> route -> Durable
 ## Setup
 
 ```bash
-npm ci
-npx wrangler login
-npm run typecheck
-npm test
-npm run dry-run
+pnpm install --frozen-lockfile
+pnpm exec wrangler login
+pnpm run typecheck
+pnpm test
+pnpm run dry-run
 # Edit relay.config.json, then set every secret referenced by it:
-npx wrangler secret put SRC_MY_GITLAB
-npx wrangler secret put SRC_MY_GITHUB
-npx wrangler secret put SRC_MY_SERVER
-npx wrangler secret put DEST_DEPLOYS
-npx wrangler secret put DEST_ALERTS
-npm run deploy
+pnpm exec wrangler secret put SRC_MY_GITLAB
+pnpm exec wrangler secret put SRC_MY_GITHUB
+pnpm exec wrangler secret put SRC_MY_SERVER
+pnpm exec wrangler secret put DEST_DEPLOYS
+pnpm exec wrangler secret put DEST_ALERTS
+pnpm run deploy
 ```
 
-Requires Node.js 22 or newer and a Cloudflare account with Workers and SQLite Durable Objects enabled. In Discord, create a webhook under the target channel's **Edit Channel > Integrations > Webhooks**, then store its URL in the destination secret. Use a different source secret for each sender. For GitHub, select JSON content type and the supported events. For GitLab, configure the secret token and supported events.
+Requires Node.js 22 or newer, pnpm 10.33.0, and a Cloudflare account with Workers and SQLite Durable Objects enabled. In Discord, create a webhook under the target channel's **Edit Channel > Integrations > Webhooks**, then store its URL in the destination secret. Use a different source secret for each sender. For GitHub, select JSON content type and the supported events. For GitLab, configure the secret token and supported events.
 
-For local development, copy `.dev.vars.example` to `.dev.vars`, fill in the secrets, and run `npm run dev`. Never commit `.dev.vars`.
+For local development, copy `.dev.vars.example` to `.dev.vars`, fill in the secrets, and run `pnpm run dev`. Never commit `.dev.vars`.
 
 Point each sender at `https://<your-worker>.workers.dev/hook/<source-id>`.
 
@@ -45,7 +45,7 @@ It contains no secrets, only the names of the Worker secrets to read.
 - `destinations.<alias>`: `secret` is the name of the secret holding a Discord webhook URL. Add channels on other servers the same way.
 - `routes`: first match is not special, every matching route applies and destinations are de-duplicated. Match by `source`, optional `project`, optional `status` (`start`, `success`, `failed`, `info`), and send `to` one or more aliases.
 
-`npm run deploy` and `npm run dry-run` validate config before Wrangler bundles it. Invalid config also fails Worker startup.
+`pnpm run deploy` and `pnpm run dry-run` validate config before Wrangler bundles it. Invalid config also fails Worker startup.
 
 ## Source types
 
@@ -86,9 +86,9 @@ curl -X POST "https://<your-worker>.workers.dev/hook/my-server" \
 
 ## Verification
 
-`npm test` runs in the Workers runtime with SQLite Durable Objects and mocked outbound HTTP. It covers authentication, normalization, routing, dedupe, rate windows, batching, queue limits, and retries. CI runs typecheck, tests, and a deploy dry-run.
+`pnpm test` runs in the Workers runtime with SQLite Durable Objects and mocked outbound HTTP. It covers authentication, normalization, routing, dedupe, rate windows, batching, queue limits, and retries. CI runs typecheck, tests, and a deploy dry-run.
 
-For real delivery verification, run `npm run dev` with a temporary Discord webhook in `.dev.vars`, then `npm run smoke`. This sends a signed HMAC event, representative GitLab/GitHub payloads, and five quick events. Confirm the messages and the five-embed batch in Discord. These payloads simulate sender deliveries; also use each repository's webhook test/redelivery UI to verify the actual integration. Localhost needs a public development URL for remote sender tests.
+For real delivery verification, run `pnpm run dev` with a temporary Discord webhook in `.dev.vars`, then `pnpm run smoke`. This sends a signed HMAC event, representative GitLab/GitHub payloads, and five quick events. Confirm the messages and the five-embed batch in Discord. These payloads simulate sender deliveries; also use each repository's webhook test/redelivery UI to verify the actual integration. Localhost needs a public development URL for remote sender tests.
 
 ## License and credit
 

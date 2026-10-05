@@ -5,11 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "npm run validate:config && wrangler deploy",
+    "deploy": "pnpm run validate:config && wrangler deploy",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "validate:config": "tsx scripts/validate-config.ts",
-    "dry-run": "npm run validate:config && wrangler deploy --dry-run",
+    "dry-run": "pnpm run validate:config && wrangler deploy --dry-run",
     "smoke": "tsx scripts/smoke.ts",
     "types": "wrangler types worker-configuration.d.ts --env-interface WorkerBindings --include-runtime=false"
   },
@@ -21,5 +21,6 @@
     "@cloudflare/vitest-pool-workers": "^0.22.0",
     "tsx": "^4.0.0"
   },
-  "license": "SEE LICENSE IN LICENSE"
+  "license": "SEE LICENSE IN LICENSE",
+  "packageManager": "pnpm@10.33.0"
 }
