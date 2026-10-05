@@ -1,0 +1,22 @@
+{
+  "sources": {
+    "my-gitlab": { "type": "gitlab", "secret": "SRC_MY_GITLAB", "allow": ["group/project"] },
+    "my-github": { "type": "github", "secret": "SRC_MY_GITHUB", "allow": ["owner/repo"] },
+    "my-server": {
+      "type": "hmac",
+      "secret": "SRC_MY_SERVER",
+      "allow": ["web-app-staging", "web-app-production"],
+      "ratePerMin": 30
+    }
+  },
+  "destinations": {
+    "deploys": { "secret": "DEST_DEPLOYS" },
+    "alerts": { "secret": "DEST_ALERTS" }
+  },
+  "routes": [
+    { "source": "my-server", "status": ["failed"], "to": ["deploys", "alerts"] },
+    { "source": "my-server", "to": ["deploys"] },
+    { "source": "my-gitlab", "to": ["deploys"] },
+    { "source": "my-github", "to": ["deploys"] }
+  ]
+}

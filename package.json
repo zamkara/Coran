@@ -1,0 +1,25 @@
+{
+  "name": "coran",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "npm run validate:config && wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "validate:config": "tsx scripts/validate-config.ts",
+    "dry-run": "npm run validate:config && wrangler deploy --dry-run",
+    "smoke": "tsx scripts/smoke.ts",
+    "types": "wrangler types worker-configuration.d.ts --env-interface WorkerBindings --include-runtime=false"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261001.1",
+    "typescript": "^5.6.0",
+    "wrangler": "^4.0.0",
+    "vitest": "^4.1.0",
+    "@cloudflare/vitest-pool-workers": "^0.22.0",
+    "tsx": "^4.0.0"
+  },
+  "license": "SEE LICENSE IN LICENSE"
+}

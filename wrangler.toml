@@ -1,0 +1,15 @@
+name = "coran"
+main = "src/index.ts"
+compatibility_date = "2026-08-15"
+
+[[durable_objects.bindings]]
+name = "GUARD"
+class_name = "Guard"
+
+[[durable_objects.bindings]]
+name = "DESTINATION"
+class_name = "Destination"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Guard", "Destination"]

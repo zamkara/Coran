@@ -1,0 +1,5 @@
+SRC_MY_GITLAB=replace-with-a-random-source-secret
+SRC_MY_GITHUB=replace-with-a-random-source-secret
+SRC_MY_SERVER=replace-with-a-random-source-secret
+DEST_DEPLOYS=
+DEST_ALERTS=
