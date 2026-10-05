@@ -69,13 +69,15 @@ Changing repositories, servers, channel webhooks, or routes requires only secret
 
 ## Configuration schema
 
-- `sources.<id>` defines a sender and its endpoint slug. `type` selects the protocol (`gitlab`, `github`, `hmac`, or `bearer`), `secret` names its authentication secret, and `allow` lists permitted repository paths or project names. Optional `ratePerMin` defaults to 60.
+- `sources.<id>` defines a sender and its endpoint slug. `type` selects the protocol (`gitlab`, `github`, `hmac`, or `bearer`), `secret` names its authentication secret, and `allow` lists permitted repository paths or project names. Optional `ratePerMin` defaults to 60. Optional `branches` is a non-empty list of exact, case-sensitive branch names. Push and pipeline/workflow events match their branch; merge/pull requests match the target branch; generic events use the optional payload `branch`. With a branch filter, missing branch metadata and events without a reliable branch (including releases) are ignored with `202 ignored branch`. No branch filter means existing behavior is preserved.
 - `destinations.<id>.secret` names the secret containing a Discord channel webhook URL. A server with multiple target channels has a destination per channel webhook.
 - `routes` connects sources to destinations. All matching routes apply and destinations are deduplicated. Optional `project` and `status` narrow the match.
 
 A source can reach multiple destinations on different Discord servers, and several sources can share a destination. Deployment notifiers can each have their own authenticated source. Protocol names select parsers; they do not prescribe identity labels.
 
 For local development, copy `.dev.vars.example` to `.dev.vars`, optionally include your complete `RELAY_CONFIG` JSON, and run `pnpm run dev`. Local secret files are ignored by Git. `pnpm run dry-run` validates the bundled example and bundles without deploying.
+
+For separate branch streams, add `"branches": ["main"]` to one source and `"branches": ["develop"]` to another in `RELAY_CONFIG`. Both can route to the same destination. Enable merge request delivery for both sender webhooks; the relay checks target branches independently of provider push filters. Test deliveries are filtered too, using their actual payload branch.
 
 ## Source types
 

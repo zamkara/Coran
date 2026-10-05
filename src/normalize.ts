@@ -19,6 +19,12 @@ function fields(o: Record<string, unknown>): Record<string, string> {
   return out;
 }
 
+const branchName = (v: unknown): string | undefined => {
+  if (typeof v !== "string" || !v) return undefined;
+  if (v.startsWith("refs/") && !v.startsWith("refs/heads/")) return undefined;
+  return v.replace(/^refs\/heads\//, "") || undefined;
+};
+
 const httpUrl = (u: unknown) => (typeof u === "string" && /^https?:\/\//.test(u) ? u : undefined);
 
 function commitLines(commits: J[], sha: (c: J) => string, url: (c: J) => string, msg: (c: J) => string): string {
@@ -31,6 +37,7 @@ export function parseGeneric(p: J): Evt | null {
   if (!p || typeof p.project !== "string" || typeof p.title !== "string") return null;
   return {
     project: p.project,
+    branch: branchName(p.branch),
     status: STATUSES.includes(p.status) ? p.status : "info",
     title: clip(p.title, 256),
     description: p.description ? clip(p.description, 2000) : undefined,
@@ -49,7 +56,7 @@ export function parseGitlab(p: J): Evt | null {
       const branch = String(p.ref ?? "").replace("refs/heads/", "");
       const commits: J[] = p.commits ?? [];
       return {
-        project, status: "info", title: clip(`Push to ${branch}`, 256),
+        project, branch: branchName(p.ref), status: "info", title: clip(`Push to ${branch}`, 256),
         description: commitLines(commits, (c) => String(c.id), (c) => c.url, (c) => String(c.message ?? "")),
         url: web && `${web}/-/commits/${encodeURIComponent(branch)}`,
         fields: fields({ Author: p.user_name, Branch: branch }),
@@ -58,7 +65,7 @@ export function parseGitlab(p: J): Evt | null {
     case "merge_request": {
       if (!["open", "merge", "close", "reopen"].includes(a.action)) return null;
       return {
-        project, status: a.action === "merge" ? "success" : "info",
+        project, branch: branchName(a.target_branch), status: a.action === "merge" ? "success" : "info",
         title: clip(`MR !${a.iid} ${a.action}: ${a.title}`, 256),
         description: `${a.source_branch} -> ${a.target_branch}`,
         url: httpUrl(a.url), fields: fields({ Author: p.user?.name }),
@@ -69,7 +76,7 @@ export function parseGitlab(p: J): Evt | null {
       const status = map[a.status];
       if (!status) return null;
       return {
-        project, status, title: clip(`Pipeline #${a.id} ${a.status}`, 256),
+        project, branch: branchName(a.ref), status, title: clip(`Pipeline #${a.id} ${a.status}`, 256),
         url: web && `${web}/-/pipelines/${a.id}`,
         fields: fields({ Branch: a.ref, Duration: a.duration ? `${a.duration}s` : undefined }),
       };
@@ -86,7 +93,7 @@ export function parseGithub(event: string, p: J): Evt | null {
     case "push": {
       const branch = String(p.ref ?? "").replace("refs/heads/", "");
       return {
-        project, status: "info", title: clip(`${p.deleted ? "Deleted" : "Push to"} ${branch}`, 256),
+        project, branch: branchName(p.ref), status: "info", title: clip(`${p.deleted ? "Deleted" : "Push to"} ${branch}`, 256),
         description: commitLines(p.commits ?? [], (c) => String(c.id), (c) => c.url, (c) => String(c.message ?? "")),
         url: httpUrl(p.compare), fields: fields({ Author: p.pusher?.name, Branch: branch }),
       };
@@ -96,7 +103,7 @@ export function parseGithub(event: string, p: J): Evt | null {
       if (!["opened", "closed", "reopened", "ready_for_review"].includes(p.action)) return null;
       const merged = p.action === "closed" && pr.merged;
       return {
-        project, status: merged ? "success" : "info",
+        project, branch: branchName(pr.base?.ref), status: merged ? "success" : "info",
         title: clip(`PR #${pr.number} ${merged ? "merged" : p.action}: ${pr.title}`, 256),
         description: `${pr.head?.ref} -> ${pr.base?.ref}`,
         url: httpUrl(pr.html_url), fields: fields({ Author: pr.user?.login }),
@@ -109,7 +116,7 @@ export function parseGithub(event: string, p: J): Evt | null {
       else if (p.action === "completed") status = w.conclusion === "success" ? "success" : ["failure", "timed_out"].includes(w.conclusion) ? "failed" : "info";
       else return null;
       return {
-        project, status, title: clip(`Workflow ${w.name} ${p.action === "completed" ? w.conclusion : "started"}`, 256),
+        project, branch: branchName(w.head_branch), status, title: clip(`Workflow ${w.name} ${p.action === "completed" ? w.conclusion : "started"}`, 256),
         url: httpUrl(w.html_url), fields: fields({ Branch: w.head_branch, Actor: w.actor?.login }),
       };
     }

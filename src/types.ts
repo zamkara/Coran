@@ -11,6 +11,8 @@ export interface Source {
   secret: string;
   /** Allowed repos ("group/repo") or project names. Use "*" to allow any. */
   allow: string[];
+  /** Exact branch names. Merge/pull requests use the target branch. */
+  branches?: string[];
   ratePerMin?: number;
 }
 
@@ -34,6 +36,7 @@ export interface Config {
 
 export interface Evt {
   project: string;
+  branch?: string;
   status: Status;
   title: string;
   description?: string;

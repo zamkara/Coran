@@ -74,6 +74,8 @@ export default {
     if (!evt) return reply("ignored", 202);
     if (!src.allow.includes("*") && !src.allow.includes(evt.project)) return reply("forbidden", 403);
 
+    if (src.branches && (!evt.branch || !src.branches.includes(evt.branch))) return reply("ignored branch", 202);
+
     const aliases = targets(config, id, evt);
     if (aliases.length === 0) return reply("no route", 202);
 

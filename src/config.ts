@@ -23,6 +23,7 @@ export function validateConfig(input: unknown): Config {
     if (!TYPES.includes(s.type)) fail(`source "${id}" has unknown type "${s.type}"`);
     if (!ENV.test(s.secret ?? "")) fail(`source "${id}" needs an uppercase secret name using letters, digits, or underscores`);
     if (!Array.isArray(s.allow) || s.allow.length === 0 || s.allow.some((v) => typeof v !== "string" || !v)) fail(`source "${id}" needs a non-empty allow list`);
+    if (s.branches !== undefined && (!Array.isArray(s.branches) || s.branches.length === 0 || s.branches.some((v) => typeof v !== "string" || !v.trim()))) fail(`source "${id}" branches must be a non-empty list of branch names`);
     if (s.ratePerMin !== undefined && (!Number.isInteger(s.ratePerMin) || s.ratePerMin < 1)) fail(`source "${id}" ratePerMin must be a positive integer`);
   }
 
