@@ -1,22 +1,22 @@
 {
   "sources": {
-    "my-gitlab": { "type": "gitlab", "secret": "SRC_MY_GITLAB", "allow": ["group/project"] },
-    "my-github": { "type": "github", "secret": "SRC_MY_GITHUB", "allow": ["owner/repo"] },
-    "my-server": {
+    "release-stream": { "type": "gitlab", "secret": "RELEASE_INGRESS", "allow": ["group/project"] },
+    "integration-stream": { "type": "github", "secret": "INTEGRATION_INGRESS", "allow": ["owner/repo"] },
+    "deploy-runner": {
       "type": "hmac",
-      "secret": "SRC_MY_SERVER",
+      "secret": "DEPLOY_INGRESS",
       "allow": ["web-app-staging", "web-app-production"],
       "ratePerMin": 30
     }
   },
   "destinations": {
-    "deploys": { "secret": "DEST_DEPLOYS" },
-    "alerts": { "secret": "DEST_ALERTS" }
+    "deploys": { "secret": "RELEASE_EGRESS" },
+    "alerts": { "secret": "INCIDENT_EGRESS" }
   },
   "routes": [
-    { "source": "my-server", "status": ["failed"], "to": ["deploys", "alerts"] },
-    { "source": "my-server", "to": ["deploys"] },
-    { "source": "my-gitlab", "to": ["deploys"] },
-    { "source": "my-github", "to": ["deploys"] }
+    { "source": "deploy-runner", "status": ["failed"], "to": ["deploys", "alerts"] },
+    { "source": "deploy-runner", "to": ["deploys"] },
+    { "source": "release-stream", "to": ["deploys"] },
+    { "source": "integration-stream", "to": ["deploys"] }
   ]
 }

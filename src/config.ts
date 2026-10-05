@@ -21,7 +21,7 @@ export function validateConfig(input: unknown): Config {
     if (!s || typeof s !== "object") fail(`source "${id}" must be an object`);
     if (!ID.test(id)) fail(`invalid source id "${id}"`);
     if (!TYPES.includes(s.type)) fail(`source "${id}" has unknown type "${s.type}"`);
-    if (!ENV.test(s.secret ?? "")) fail(`source "${id}" needs a secret name like SRC_NAME`);
+    if (!ENV.test(s.secret ?? "")) fail(`source "${id}" needs an uppercase secret name using letters, digits, or underscores`);
     if (!Array.isArray(s.allow) || s.allow.length === 0 || s.allow.some((v) => typeof v !== "string" || !v)) fail(`source "${id}" needs a non-empty allow list`);
     if (s.ratePerMin !== undefined && (!Number.isInteger(s.ratePerMin) || s.ratePerMin < 1)) fail(`source "${id}" ratePerMin must be a positive integer`);
   }
@@ -29,7 +29,7 @@ export function validateConfig(input: unknown): Config {
   for (const [alias, d] of Object.entries(config.destinations ?? {})) {
     if (!d || typeof d !== "object") fail(`destination "${alias}" must be an object`);
     if (!ID.test(alias)) fail(`invalid destination alias "${alias}"`);
-    if (!ENV.test(d.secret ?? "")) fail(`destination "${alias}" needs a secret name like DEST_NAME`);
+    if (!ENV.test(d.secret ?? "")) fail(`destination "${alias}" needs an uppercase secret name using letters, digits, or underscores`);
   }
 
   for (const [i, r] of (config.routes ?? []).entries()) {

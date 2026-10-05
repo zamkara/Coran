@@ -6,7 +6,7 @@ import { hmacHex } from '../src/auth';
 import type { Env } from '../src/types';
 const bindings = env as Env;
 afterEach(async () => { vi.restoreAllMocks(); await reset(); });
-async function send(body = '{"project":"web-app-staging","title":"hello"}', path = '/hook/my-server', headers: Record<string, string> = {}, method = 'POST') {
+async function send(body = '{"project":"web-app-staging","title":"hello"}', path = '/hook/deploy-runner', headers: Record<string, string> = {}, method = 'POST') {
   const ts = String(Math.floor(Date.now() / 1000));
   const req = new Request('https://example.com' + path, {
     method,
@@ -18,14 +18,14 @@ async function send(body = '{"project":"web-app-staging","title":"hello"}', path
   await waitOnExecutionContext(ctx);
   return res;
 }
-it.each([['/wrong', 'POST'], ['/hook/my-server/extra', 'POST'], ['/hook/my-server', 'GET']])('returns 404 for %s %s', async (path, method) => {
+it.each([['/wrong', 'POST'], ['/hook/deploy-runner/extra', 'POST'], ['/hook/deploy-runner', 'GET']])('returns 404 for %s %s', async (path, method) => {
   expect((await send(undefined, path, {}, method)).status).toBe(404);
 });
 it('uses identical 401 responses for unknown sources, missing secrets and bad auth', async () => {
   const unknown = await send(undefined, '/hook/unknown');
   const bad = await send(undefined, undefined, { 'x-signature': 'wrong' });
   const ctx = createExecutionContext();
-  const missing = await worker.fetch(new Request('https://example.com/hook/my-server', { method: 'POST' }), { ...bindings, SRC_MY_SERVER: undefined }, ctx);
+  const missing = await worker.fetch(new Request('https://example.com/hook/deploy-runner', { method: 'POST' }), { ...bindings, DEPLOY_INGRESS: undefined }, ctx);
   for (const response of [unknown, bad, missing]) {
     expect(response.status).toBe(401);
     expect(await response.text()).toBe('unauthorized');
@@ -73,14 +73,14 @@ it('accepts and deduplicates destinations across matching routes', async () => {
 });
 it('processes signed GitHub and token-authenticated GitLab deliveries', async () => {
   const gl = JSON.stringify({ project: { path_with_namespace: 'group/project' }, object_kind: 'pipeline', object_attributes: { status: 'success', id: 1 } });
-  expect((await send(gl, '/hook/my-gitlab', { 'x-gitlab-token': 'test-secret', 'idempotency-key': 'gitlab-test' })).status).toBe(202);
+  expect((await send(gl, '/hook/release-stream', { 'x-gitlab-token': 'test-secret', 'idempotency-key': 'gitlab-test' })).status).toBe(202);
   const gh = JSON.stringify({ repository: { full_name: 'owner/repo' }, action: 'published', release: { tag_name: 'v1' } });
-  expect((await send(gh, '/hook/my-github', { 'x-hub-signature-256': 'sha256=' + await hmacHex('test-secret', gh), 'x-github-event': 'release', 'x-github-delivery': 'github-test' })).status).toBe(202);
+  expect((await send(gh, '/hook/integration-stream', { 'x-hub-signature-256': 'sha256=' + await hmacHex('test-secret', gh), 'x-github-event': 'release', 'x-github-delivery': 'github-test' })).status).toBe(202);
 });
 it('accepts bearer generic payloads and returns 202 when no route matches', async () => {
   const { default: config } = await import('../src/config');
   const source = 'test-bearer';
-  config.sources[source] = { type: 'bearer', secret: 'SRC_MY_SERVER', allow: ['*'] };
+  config.sources[source] = { type: 'bearer', secret: 'DEPLOY_INGRESS', allow: ['*'] };
   try {
     const res = await send('{"project":"example","title":"hello"}', '/hook/' + source, { authorization: 'Bearer test-secret' });
     expect(res.status).toBe(202);
@@ -90,7 +90,7 @@ it('accepts bearer generic payloads and returns 202 when no route matches', asyn
   }
 });
 it('applies private allowlist and routes and rejects projects from the bundled example', async () => {
-  const custom = { sources: { private: { type: 'gitlab', secret: 'SRC_MY_GITLAB', allow: ['example/private'] } }, destinations: { deploys: { secret: 'DEST_DEPLOYS' } }, routes: [{ source: 'private', to: ['deploys'] }] };
+  const custom = { sources: { private: { type: 'gitlab', secret: 'RELEASE_INGRESS', allow: ['example/private'] } }, destinations: { deploys: { secret: 'RELEASE_EGRESS' } }, routes: [{ source: 'private', to: ['deploys'] }] };
   const customEnv = { ...bindings, RELAY_CONFIG: JSON.stringify(custom) };
   const ctx = createExecutionContext();
   const req = (project: string) => new Request('https://example.com/hook/private', {
@@ -107,7 +107,7 @@ it('applies private allowlist and routes and rejects projects from the bundled e
 });
 it('fails closed on invalid private config and logs no raw input', async () => {
   const log = vi.spyOn(console, 'error').mockImplementation(() => {});
-  const res = await worker.fetch(new Request('https://example.com/hook/my-gitlab', { method: 'POST' }), { ...bindings, RELAY_CONFIG: 'private-invalid-json' }, createExecutionContext());
+  const res = await worker.fetch(new Request('https://example.com/hook/release-stream', { method: 'POST' }), { ...bindings, RELAY_CONFIG: 'private-invalid-json' }, createExecutionContext());
   expect(res.status).toBe(503);
   expect(await res.text()).toBe('configuration unavailable');
   expect(log).toHaveBeenCalledWith('relay configuration invalid');

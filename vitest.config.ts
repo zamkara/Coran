@@ -10,8 +10,8 @@ export default defineConfig({
         DESTINATION: { className: 'Destination', useSQLite: true },
       },
       bindings: {
-        SRC_MY_GITLAB: 'test-secret', SRC_MY_GITHUB: 'test-secret', SRC_MY_SERVER: 'test-secret',
-        DEST_DEPLOYS: 'https://discord.test/webhook',
+        RELEASE_INGRESS: 'test-secret', INTEGRATION_INGRESS: 'test-secret', DEPLOY_INGRESS: 'test-secret',
+        RELEASE_EGRESS: 'https://discord.test/webhook',
       },
     },
   })],

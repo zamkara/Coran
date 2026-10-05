@@ -14,7 +14,7 @@ The compatibility date is `2026-08-15`, supported by the runtime bundled with th
 
 ## Remaining live checks
 
-Real Discord, GitLab, and GitHub delivery has not been verified. The owner has deployed the Worker and configured Discord and GitLab secrets; successful live delivery and rendering remain unverified. CI has been configured but has not yet run on GitHub.
+Real Discord, GitLab, and GitHub delivery has not been verified. Successful live delivery and rendering remain unverified. CI has been configured but has not yet run on GitHub.
 
 1. Create a temporary Discord channel webhook and fill in `.dev.vars` using `.dev.vars.example`.
 2. Run `pnpm run dev` and then `pnpm run smoke`. Expect HTTP 202 for all eight events.

@@ -81,8 +81,8 @@ it('resolves destination secrets through the private config', async () => {
   await runInDurableObject(s, async (_, state) => {
     await state.storage.deleteAlarm();
     const { Destination } = await import('../src/destination');
-    const custom = { sources: {}, destinations: { private: { secret: 'DEST_PRIVATE' } }, routes: [] };
-    const instance = new Destination(state, { ...bindings, RELAY_CONFIG: JSON.stringify(custom), DEST_PRIVATE: 'https://discord.test/private' });
+    const custom = { sources: {}, destinations: { private: { secret: 'PRIVATE_EGRESS' } }, routes: [] };
+    const instance = new Destination(state, { ...bindings, RELAY_CONFIG: JSON.stringify(custom), PRIVATE_EGRESS: 'https://discord.test/private' });
     await instance.alarm();
   });
   expect(fetch.mock.calls[0][0]).toBe('https://discord.test/private');

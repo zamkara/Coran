@@ -8,9 +8,9 @@ it.each([null, [], {}, { sources: {}, destinations: {}, routes: {} }])('rejects 
   expect(() => validateConfig(input)).toThrow('relay.config.json:');
 });
 it.each([
-  (c: typeof example) => { c.sources['my-server'].ratePerMin = 0; },
-  (c: typeof example) => { c.sources['my-server'].allow = []; },
-  (c: typeof example) => { c.sources['my-server'].secret = 'https://example.com/secret'; },
+  (c: typeof example) => { c.sources['deploy-runner'].ratePerMin = 0; },
+  (c: typeof example) => { c.sources['deploy-runner'].allow = []; },
+  (c: typeof example) => { c.sources['deploy-runner'].secret = 'https://example.com/secret'; },
   (c: typeof example) => { c.routes[0].source = 'missing'; },
   (c: typeof example) => { c.routes[0].to = ['missing']; },
   (c: typeof example) => { c.routes[0].status = ['invalid']; },
@@ -25,7 +25,7 @@ it('uses bundled config only when RELAY_CONFIG is absent', () => {
   expect(configFor({})).toBe(bundled);
 });
 it('uses a complete private config without changing the bundled one', () => {
-  const custom = { sources: { private: { type: 'gitlab', secret: 'SRC_PRIVATE', allow: ['example/private'] } }, destinations: { private: { secret: 'DEST_PRIVATE' } }, routes: [{ source: 'private', to: ['private'] }] };
+  const custom = { sources: { private: { type: 'gitlab', secret: 'PRIVATE_INGRESS', allow: ['example/private'] } }, destinations: { private: { secret: 'PRIVATE_EGRESS' } }, routes: [{ source: 'private', to: ['private'] }] };
   expect(configFor({ RELAY_CONFIG: JSON.stringify(custom) })).toEqual(custom);
   expect(bundled.sources.private).toBeUndefined();
 });

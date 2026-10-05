@@ -16,49 +16,66 @@ sources (many) -> Worker: authenticate, allowlist, normalize -> route -> Durable
 
 ## Setup
 
+Deploy the same repository or fork without editing source, configuration files, or identity labels. All deployment-specific configuration is supplied through Worker secrets. Requires Node.js 22 or newer, pnpm 10.33.0, and a Cloudflare account with Workers and SQLite Durable Objects enabled.
+
 ```bash
 pnpm install --frozen-lockfile
 pnpm exec wrangler login
-pnpm run typecheck
-pnpm test
-pnpm run dry-run
-# Edit relay.config.json, then set every secret referenced by it:
-pnpm exec wrangler secret put SRC_MY_GITLAB
-pnpm exec wrangler secret put SRC_MY_GITHUB
-pnpm exec wrangler secret put SRC_MY_SERVER
-pnpm exec wrangler secret put DEST_DEPLOYS
-pnpm exec wrangler secret put DEST_ALERTS
 pnpm run deploy
 ```
 
-Requires Node.js 22 or newer, pnpm 10.33.0, and a Cloudflare account with Workers and SQLite Durable Objects enabled. In Discord, create a webhook under the target channel's **Edit Channel > Integrations > Webhooks**, then store its URL in the destination secret. Use a different source secret for each sender. For GitHub, select JSON content type and the supported events. For GitLab, configure the secret token and supported events.
+After the first deployment, open the Worker's **Settings > Variables and Secrets** in Cloudflare. Add these as type **Secret**, then deploy the secret changes:
 
-For local development, copy `.dev.vars.example` to `.dev.vars`, fill in the secrets, and run `pnpm run dev`. Never commit `.dev.vars`.
+| Name | Value |
+| --- | --- |
+| `RELEASE_INGRESS` | Random authentication value also configured on the sender |
+| `RELEASE_EGRESS` | Discord channel webhook URL |
+| `RELAY_CONFIG` | Complete JSON configuration, such as the example below |
 
-Point each sender at `https://<your-worker>.workers.dev/hook/<source-id>`.
+The names below are examples. Choose your own source IDs, destination IDs, and credential names entirely in the environment. Neither prefixes nor suffixes are required. Secret names use uppercase letters, digits, and underscores and start with a letter; endpoint and destination IDs use lowercase letters, digits, hyphens, and underscores.
 
-## relay.config.json
+```json
+{
+  "sources": {
+    "release-stream": {
+      "type": "gitlab",
+      "secret": "RELEASE_INGRESS",
+      "allow": ["example/project"]
+    }
+  },
+  "destinations": {
+    "release-room": { "secret": "RELEASE_EGRESS" }
+  },
+  "routes": [
+    { "source": "release-stream", "to": ["release-room"] }
+  ]
+}
+```
 
-It contains no secrets, only the names of the Worker secrets to read.
+Use your actual repository path in the environment allowlist. Point the sender to `https://<worker-domain>/hook/release-stream`, using the source ID from your config. Configure authentication for its protocol. In Discord, create a channel webhook under **Edit Channel > Integrations > Webhooks** and store its URL in the destination secret.
 
-- `sources.<id>`: `type` is `gitlab`, `github`, `hmac`, or `bearer`; `secret` is the secret name; `allow` lists repos (`group/repo`, `owner/repo`) or project names, or `["*"]`; optional `ratePerMin` (default 60).
-- `destinations.<alias>`: `secret` is the name of the secret holding a Discord webhook URL. Add channels on other servers the same way.
-- `routes`: first match is not special, every matching route applies and destinations are de-duplicated. Match by `source`, optional `project`, optional `status` (`start`, `success`, `failed`, `info`), and send `to` one or more aliases.
+`RELAY_CONFIG` replaces the bundled example in both request handling and destination delivery. Invalid runtime config returns `503` for hook requests and retains queued deliveries for retry. It never falls back to the example when an override is invalid. Without the override, the generic bundled example is used; configure the override before connecting real senders.
 
-`pnpm run deploy` and `pnpm run dry-run` validate config before Wrangler bundles it. Invalid config also fails Worker startup.
-
-### Private deployment configuration
-
-Keep the public `relay.config.json` generic. To override it for a deployment, add a Worker secret named `RELAY_CONFIG` containing a complete configuration JSON with the same schema. It replaces the bundled config in both the request handler and destination delivery. Source credentials and Discord webhook URLs still belong in separate secrets referenced by name.
-
-Copy your private configuration into `relay.config.local.json` (ignored by Git), validate it locally, and upload it:
+Alternatively, store your JSON in `relay.config.local.json` (ignored by Git), validate it, and upload it with Wrangler:
 
 ```bash
 pnpm run validate:config -- relay.config.local.json
+pnpm exec wrangler secret put RELEASE_INGRESS
+pnpm exec wrangler secret put RELEASE_EGRESS
 pnpm exec wrangler secret put RELAY_CONFIG < relay.config.local.json
 ```
 
-Alternatively, paste the JSON into a `RELAY_CONFIG` secret in the Worker dashboard and deploy the secret change. Invalid runtime config returns `503` for hook requests and retains queued deliveries for retry. It never falls back to the public example. Removing the secret restores the bundled config. Validate runtime changes before uploading because CI only verifies the public config.
+Changing repositories, servers, channel webhooks, or routes requires only secret updates, not a code change or a new commit. Never commit private configuration or credentials. The public `relay.config.json` remains a generic reference example; CI validates it, not your deployed secrets.
+
+## Configuration schema
+
+- `sources.<id>` defines a sender and its endpoint slug. `type` selects the protocol (`gitlab`, `github`, `hmac`, or `bearer`), `secret` names its authentication secret, and `allow` lists permitted repository paths or project names. Optional `ratePerMin` defaults to 60.
+- `destinations.<id>.secret` names the secret containing a Discord channel webhook URL. A server with multiple target channels has a destination per channel webhook.
+- `routes` connects sources to destinations. All matching routes apply and destinations are deduplicated. Optional `project` and `status` narrow the match.
+
+A source can reach multiple destinations on different Discord servers, and several sources can share a destination. Deployment notifiers can each have their own authenticated source. Protocol names select parsers; they do not prescribe identity labels.
+
+For local development, copy `.dev.vars.example` to `.dev.vars`, optionally include your complete `RELAY_CONFIG` JSON, and run `pnpm run dev`. Local secret files are ignored by Git. `pnpm run dry-run` validates the bundled example and bundles without deploying.
 
 ## Source types
 
@@ -83,7 +100,7 @@ Signing example for `hmac`:
 TS=$(date +%s)
 BODY='{"project":"web-app-staging","status":"success","title":"Deploy finished"}'
 SIG=$(printf '%s.%s' "$TS" "$BODY" | openssl dgst -sha256 -hmac "$SECRET" -hex | sed 's/^.* //')
-curl -X POST "https://<your-worker>.workers.dev/hook/my-server" \
+curl -X POST "https://<your-worker>.workers.dev/hook/deploy-runner" \
   -H "content-type: application/json" -H "x-timestamp: $TS" -H "x-signature: $SIG" -d "$BODY"
 ```
 
